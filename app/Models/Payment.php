@@ -60,6 +60,13 @@ class Payment extends Model
         return $query->where('freelancer_id', $freelancerId);
     }
 
+    public function scopeForUser($query, $userId)
+    {
+        return $query->whereHas('client', function($q) use ($userId) {
+            $q->where('user_id', $userId);
+        });
+    }
+
     public function scopeCompleted($query)
     {
         return $query->where('status', 'completed');

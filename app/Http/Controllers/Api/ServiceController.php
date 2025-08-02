@@ -31,7 +31,7 @@ class ServiceController extends Controller
         return ApiResponse::paginated(
             'Services retrieved successfully',
             $services,
-            ServiceListResource::class
+            ServiceResource::class
         );
     }
 
@@ -107,7 +107,7 @@ class ServiceController extends Controller
         return ApiResponse::paginated(
             'Services ready for billing retrieved successfully',
             $services,
-            ServiceListResource::class
+            ServiceResource::class
         );
     }
 
@@ -123,7 +123,7 @@ class ServiceController extends Controller
         return ApiResponse::paginated(
             'Recurring services retrieved successfully',
             $services,
-            ServiceListResource::class
+            ServiceResource::class
         );
     }
 
