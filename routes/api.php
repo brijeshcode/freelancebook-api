@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClientController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\FreelancerSettingController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProjectController;
@@ -43,6 +45,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('{user}/change-role', 'changeRole')->name('change-role');
     });
 
+    Route::get('clients/{client}/balance', [ClientController::class, 'balance'])->name('clients.balance');
     
     Route::name('clients.')->prefix('clients')->controller(ClientController::class)->group(function () {
         
@@ -110,11 +113,25 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
 
+    Route::get('invoices/stats', [InvoiceController::class, 'stats'])->name('invoices.stats');
     Route::apiResource('invoices', InvoiceController::class);
     Route::patch('invoices/{invoice}/mark-as-sent', [InvoiceController::class, 'markAsSent']);
     
     // Payment Management
+    // Add to api.php
+    Route::get('payments/view-file', [PaymentController::class, 'viewFile'])->name('payments.view-file');
+    Route::get('payments/download-file', [PaymentController::class, 'downloadFile'])->name('payments.download-file');
+    Route::get('payments/stats', [PaymentController::class, 'stats'])->name('payments.stats');
     Route::apiResource('payments', PaymentController::class);
     Route::patch('payments/{payment}/verify', [PaymentController::class, 'verify']);
 
+    Route::post('payments/upload-receipts', [PaymentController::class, 'uploadReceipts'])->name('payments.upload-receipts');
+
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::prefix('settings')->group(function () {
+        Route::get('/', [FreelancerSettingController::class, 'show']);
+        Route::put('/', [FreelancerSettingController::class, 'update']);
+        Route::post('/reset-invoice-numbering', [FreelancerSettingController::class, 'resetInvoiceNumbering']);
+    });
 });

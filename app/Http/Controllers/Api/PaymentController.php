@@ -10,21 +10,22 @@ use App\Http\Responses\ApiResponse;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class PaymentController extends Controller
 {
-    private int $userId ; 
+    private int $userId;
     public function __construct()
     {
         $this->userId = Auth::id();
     }
-    
+
     public function index(Request $request)
     {
-        $payments = Payment::whereHas('client', function($q) {
-                $q->where('user_id', $this->userId);
-            })
+        $payments = Payment::whereHas('client', function ($q) {
+            $q->where('user_id', $this->userId);
+        })
             ->with(['client'])
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->client_id, fn($q) => $q->where('client_id', $request->client_id))
@@ -66,7 +67,7 @@ class PaymentController extends Controller
         }
 
         $updateData = $request->validated();
-        
+
         // Recalculate base currency amount if amount or exchange rate changed
         if ($request->has('amount') || $request->has('exchange_rate')) {
             $amount = $request->amount ?? $payment->amount;
@@ -103,5 +104,71 @@ class PaymentController extends Controller
         ]);
 
         return ApiResponse::update('Payment verified successfully', new PaymentResource($payment));
+    }
+
+    public function stats()
+    {
+        $freelancerId = $this->userId;
+
+        $payments = Payment::whereHas('client', function ($q) use ($freelancerId) {
+            $q->where('user_id', $freelancerId);
+        });
+
+        $totalPayments = $payments->count();
+        $totalReceived = $payments->where('status', 'completed')->sum('amount_base_currency');
+        $pendingAmount = $payments->where('status', 'pending')->sum('amount_base_currency');
+        $thisMonth = $payments->where('status', 'completed')
+            ->whereMonth('payment_date', now()->month)
+            ->whereYear('payment_date', now()->year)
+            ->sum('amount_base_currency');
+
+        return ApiResponse::show('Payment statistics retrieved successfully', [
+            'total_payments' => $totalPayments,
+            'total_received' => round($totalReceived, 2),
+            'pending_amount' => round($pendingAmount, 2),
+            'this_month' => round($thisMonth, 2)
+        ]);
+    }
+
+    public function uploadReceipts(Request $request)
+    {
+        $request->validate([
+            'files.*' => 'required|file|mimes:jpeg,jpg,png,gif,pdf|max:10240'
+        ]);
+
+        $filePaths = [];
+
+        if ($request->hasFile('files')) {
+            foreach ($request->file('files') as $file) {
+                $path = $file->store('payments/receipts', 'public');
+                $filePaths[] = $path;
+            }
+        }
+
+        return ApiResponse::show('Files uploaded successfully', [
+            'file_paths' => $filePaths
+        ]);
+    }
+
+    public function viewFile(Request $request)
+    {
+        $path = $request->get('path');
+
+        if (!Storage::exists($path)) {
+            return response()->json(['error' => 'File not found'], 404);
+        }
+
+        return Storage::response($path);
+    }
+
+    public function downloadFile(Request $request)
+    {
+        $path = $request->get('path');
+
+        if (!Storage::exists($path)) {
+            return response()->json(['error' => 'File not found'], 404);
+        }
+
+        return Storage::download($path);
     }
 }

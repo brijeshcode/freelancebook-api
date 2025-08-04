@@ -29,7 +29,7 @@ class Service extends Model
         'end_date',
         'status',
         'is_active',
-        'last_billed_invoice_id',
+        // 'last_billed_invoice_id',
         'last_billed_at',
         'billing_count',
         'tags',

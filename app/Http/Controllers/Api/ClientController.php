@@ -131,4 +131,18 @@ class ClientController extends Controller
 
         return ApiResponse::update('Client status updated successfully', new ClientResource($client));
     }
+
+    public function balance(Client $client)
+    {
+        // Calculate client balance
+        $totalInvoiced = $client->invoices()->sum('total_amount_base_currency');
+        $totalPaid = $client->payments()->where('status', 'completed')->sum('amount_base_currency');
+        $outstandingBalance = $totalInvoiced - $totalPaid;
+        
+        return ApiResponse::show('Client balance retrieved successfully', [
+            'total_invoiced' => round($totalInvoiced, 2),
+            'total_paid' => round($totalPaid, 2),
+            'outstanding_balance' => round($outstandingBalance, 2)
+        ]);
+    }
 }

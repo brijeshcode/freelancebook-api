@@ -10,6 +10,7 @@ use App\Http\Responses\ApiResponse;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\FreelancerSetting;
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -141,5 +142,43 @@ class InvoiceController extends Controller
         ]);
 
         return ApiResponse::update('Invoice marked as sent', new InvoiceResource($invoice));
+    }
+
+    public function stats()
+    {
+        $freelancerId = $this->userId;
+        
+        // Get all invoices for this freelancer
+        $invoices = Invoice::whereHas('client', function($q) use ($freelancerId) {
+            $q->where('user_id', $freelancerId);
+        });
+        
+        // Total invoices count
+        $totalInvoices = $invoices->count();
+        
+        // Total billed amount (sum of all invoice amounts in base currency)
+        $totalBilled = $invoices->sum('total_amount_base_currency');
+        
+        // Count overdue invoices
+        $overdueInvoices = $invoices->where('due_date', '<', now())
+            ->whereNotIn('status', ['paid', 'cancelled'])
+            ->count();
+        
+        // Calculate outstanding balance
+        // Outstanding Balance = Total Invoices - Total Payments
+        $totalPayments = Payment::whereHas('client', function($q) use ($freelancerId) {
+            $q->where('user_id', $freelancerId);
+        })->where('status', 'completed')
+        ->sum('amount_base_currency');
+        
+        $outstandingBalance = $totalBilled - $totalPayments;
+        $stats = [
+            'total_invoices' => $totalInvoices,
+            'total_billed' => round($totalBilled, 2),
+            'outstanding_balance' => round($outstandingBalance, 2),
+            'overdue_invoices' => $overdueInvoices
+        ];
+        
+        return ApiResponse::index('Invoice statistics retrieved successfully', $stats);
     }
 }

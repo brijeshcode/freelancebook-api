@@ -58,7 +58,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             
             // Invoice Tracking
-            $table->foreignId('last_billed_invoice_id')->nullable()->constrained('invoices')->nullOnDelete();
+            // $table->foreignId('last_billed_invoice_id')->nullable()->constrained('invoices')->nullOnDelete();
             $table->timestamp('last_billed_at')->nullable();
             $table->integer('billing_count')->default(0); // how many times this service has been billed
             
