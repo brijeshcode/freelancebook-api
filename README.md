@@ -164,7 +164,7 @@ This API is configured for shared hosting deployment via GitHub integration:
 
 ## 📞 Contact
 
-- **LinkedIn:** [Your LinkedIn Profile](https://www.linkedin.com/in/brijesh-it/)
+- **LinkedIn:** [Brijesh Kumar Chaturvedi](https://www.linkedin.com/in/brijesh-it/)
 - **GitHub Issues:** For bug reports and feature requests
 
 ## 🔄 Version History
