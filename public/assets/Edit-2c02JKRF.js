@@ -1,0 +1,1 @@
+var e=(e,t)=>{let n=e.__vccOpts||e;for(let[e,r]of t)n[e]=r;return n};const t={};function n(e,t){return`invoice edit`}var r=e(t,[[`render`,n]]);export{r as default};
