@@ -17,6 +17,7 @@ return new class extends Migration
             
             // Invoice Details
             $table->date('invoice_date');
+            $table->date('billing_month')->nullable(); // first day of billing month, e.g. 2026-03-01
             $table->date('due_date')->nullable();
             $table->text('notes')->nullable();
             $table->enum('status', ['draft', 'sent', 'paid', 'overdue', 'cancelled'])->default('paid');

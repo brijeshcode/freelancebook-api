@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasCurrencyConversion;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -9,15 +10,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Payment extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasCurrencyConversion;
 
     protected $fillable = [
         'transaction_number',
         'client_id',
         'freelancer_id',
         'amount',
-        'currency',
+        'currency_id',
         'exchange_rate',
+        'calculation_type',
         'amount_base_currency',
         'payment_date',
         'payment_method',
@@ -26,7 +28,7 @@ class Payment extends Model
         'status',
         'verified_at',
         'verified_by',
-        'receipt_attachments'
+        'receipt_attachments',
     ];
 
     protected $casts = [
@@ -35,7 +37,7 @@ class Payment extends Model
         'exchange_rate' => 'decimal:6',
         'amount_base_currency' => 'decimal:2',
         'verified_at' => 'datetime',
-        'receipt_attachments' => 'array'
+        'receipt_attachments' => 'array',
     ];
 
     // Relationships

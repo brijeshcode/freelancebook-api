@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\FreelancerSettingController;
 use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\ListController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ServiceController;
@@ -128,6 +129,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('payments/upload-receipts', [PaymentController::class, 'uploadReceipts'])->name('payments.upload-receipts');
 
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::prefix('lists')->name('lists.')->controller(ListController::class)->group(function () {
+        Route::get('currencies', 'getCurrencies')->name('currencies');
+        Route::get('clients', 'getClients')->name('clients');
+        Route::get('projects', 'getProjects')->name('projects');
+        Route::get('services', 'getServices')->name('services');
+    });
 
     Route::prefix('settings')->group(function () {
         Route::get('/', [FreelancerSettingController::class, 'show']);

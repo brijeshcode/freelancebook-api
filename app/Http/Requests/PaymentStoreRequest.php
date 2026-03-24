@@ -16,33 +16,38 @@ class PaymentStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'client_id' => 'required|exists:clients,id',
-            'amount' => 'required|numeric|min:0.01',
-            'currency' => 'required|string|size:3',
-            'exchange_rate' => 'required|numeric|min:0.000001|max:9999.999999',
-            'payment_date' => 'required|date|before_or_equal:today',
-            'payment_method' => 'required|in:bank_transfer,paypal,stripe,western_union,cash,check,crypto,other',
+            'client_id'             => 'required|exists:clients,id',
+            'amount'                => 'required|numeric|min:0.01',
+            'currency_id'           => 'required|exists:currencies,id',
+            // exchange_rate and calculation_type are auto-filled from currency_rates
+            // but can be overridden (e.g. when a freelancer agrees on a custom rate)
+            'exchange_rate'         => 'nullable|numeric|min:0.000001',
+            'calculation_type'      => 'nullable|in:multiply,divide',
+            'payment_date'          => 'required|date|before_or_equal:today',
+            'payment_method'        => 'required|in:bank_transfer,paypal,stripe,western_union,cash,check,crypto,other',
             'transaction_reference' => 'nullable|string|max:100',
-            'notes' => 'nullable|string|max:1000',
-            'status' => 'sometimes|in:pending,completed,failed,refunded',
-            'receipt_attachments' => 'nullable|array',
-            'receipt_attachments.*' => 'string|max:255', // File paths
+            'notes'                 => 'nullable|string|max:1000',
+            'status'                => 'sometimes|in:pending,completed,failed,refunded',
+            'receipt_attachments'   => 'nullable|array',
+            'receipt_attachments.*' => 'string|max:255',
         ];
     }
 
     public function messages(): array
     {
         return [
-            'client_id.required' => 'Client is required',
-            'client_id.exists' => 'Selected client does not exist',
-            'amount.required' => 'Payment amount is required',
-            'amount.min' => 'Payment amount must be greater than 0',
-            'payment_date.before_or_equal' => 'Payment date cannot be in the future',
-            'payment_method.in' => 'Invalid payment method selected',
+            'client_id.required'        => 'Client is required.',
+            'client_id.exists'          => 'Selected client does not exist.',
+            'currency_id.required'      => 'Currency is required.',
+            'currency_id.exists'        => 'Selected currency does not exist.',
+            'amount.required'           => 'Payment amount is required.',
+            'amount.min'                => 'Payment amount must be greater than 0.',
+            'payment_date.before_or_equal' => 'Payment date cannot be in the future.',
+            'payment_method.in'         => 'Invalid payment method selected.',
         ];
     }
 
-    protected function failedValidation(Validator $validator)
+    protected function failedValidation(Validator $validator): void
     {
         ApiResponse::failValidation($validator->errors());
     }

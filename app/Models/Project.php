@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasCurrencyConversion;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,14 +10,17 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Project extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasCurrencyConversion;
 
     protected $fillable = [
         'client_id',
         'freelancer_id',
         'name',
         'budget',
-        'budget_currency',
+        'currency_id',
+        'exchange_rate',
+        'calculation_type',
+        'budget_base_currency',
         'notes',
         'project_details',
         'start_date',
@@ -25,15 +29,18 @@ class Project extends Model
         'estimated_hours',
         'actual_hours',
         'total_paid',
-        'payment_currency',
+        'total_paid_base_currency',
         'status',
     ];
 
     protected $casts = [
         'budget' => 'decimal:2',
+        'budget_base_currency' => 'decimal:2',
+        'exchange_rate' => 'decimal:6',
         'estimated_hours' => 'decimal:2',
         'actual_hours' => 'decimal:2',
         'total_paid' => 'decimal:2',
+        'total_paid_base_currency' => 'decimal:2',
         'start_date' => 'date',
         'end_date' => 'date',
         'deadline' => 'date',
@@ -61,6 +68,12 @@ class Project extends Model
     {
         if (!$this->budget) return null;
         return $this->budget - $this->total_paid;
+    }
+
+    public function getRemainingBudgetBaseCurrencyAttribute(): ?float
+    {
+        if (!$this->budget_base_currency) return null;
+        return $this->budget_base_currency - $this->total_paid_base_currency;
     }
 
     public function getTimeVarianceAttribute(): ?float

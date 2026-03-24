@@ -14,15 +14,18 @@ class InvoiceItem extends Model
     protected $fillable = [
         'invoice_id',
         'service_id',
+        'title',
         'description',
         'quantity',
         'unit_price',
+        'unit_price_base_currency',
         'total_price',
+        'total_price_base_currency',
         'service_period_start',
         'service_period_end',
         'is_recurring',
         'notes',
-        'sort_order'
+        'sort_order',
     ];
 
     protected $casts = [
@@ -30,9 +33,11 @@ class InvoiceItem extends Model
         'service_period_end' => 'date',
         'quantity' => 'integer',
         'unit_price' => 'decimal:2',
+        'unit_price_base_currency' => 'decimal:2',
         'total_price' => 'decimal:2',
+        'total_price_base_currency' => 'decimal:2',
         'is_recurring' => 'boolean',
-        'sort_order' => 'integer'
+        'sort_order' => 'integer',
     ];
 
     // Relationships

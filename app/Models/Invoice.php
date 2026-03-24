@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasCurrencyConversion;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -10,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Invoice extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasCurrencyConversion;
 
     protected $fillable = [
         'invoice_number',
@@ -18,30 +20,37 @@ class Invoice extends Model
         'project_id',
         'freelancer_id',
         'invoice_date',
+        'billing_month',
         'due_date',
         'notes',
         'status',
-        'currency',
+        'currency_id',
         'exchange_rate',
+        'calculation_type',
         'subtotal',
+        'subtotal_base_currency',
         'tax_amount',
+        'tax_amount_base_currency',
         'total_amount',
         'total_amount_base_currency',
         'tax_rate',
         'tax_label',
-        'sent_at'
+        'sent_at',
     ];
 
     protected $casts = [
         'invoice_date' => 'date',
+        'billing_month' => 'date',
         'due_date' => 'date',
         'sent_at' => 'datetime',
         'exchange_rate' => 'decimal:6',
         'subtotal' => 'decimal:2',
+        'subtotal_base_currency' => 'decimal:2',
         'tax_amount' => 'decimal:2',
+        'tax_amount_base_currency' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'total_amount_base_currency' => 'decimal:2',
-        'tax_rate' => 'decimal:2'
+        'tax_rate' => 'decimal:2',
     ];
 
     // Relationships
@@ -87,5 +96,11 @@ class Invoice extends Model
     {
         return $query->where('status', '!=', 'paid')
                     ->where('due_date', '<', now());
+    }
+
+    public function scopeByBillingMonth($query, string $month)
+    {
+        $date = Carbon::parse($month)->startOfMonth();
+        return $query->where('billing_month', $date->toDateString());
     }
 }

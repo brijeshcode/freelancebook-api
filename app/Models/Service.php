@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasCurrencyConversion;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Service extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasCurrencyConversion;
 
     protected $fillable = [
         'client_id',
@@ -18,7 +19,10 @@ class Service extends Model
         'title',
         'description',
         'amount',
-        'currency',
+        'currency_id',
+        'exchange_rate',
+        'calculation_type',
+        'amount_base_currency',
         'has_tax',
         'tax_name',
         'tax_rate',
@@ -39,6 +43,8 @@ class Service extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'amount_base_currency' => 'decimal:2',
+        'exchange_rate' => 'decimal:6',
         'tax_rate' => 'decimal:2',
         'has_tax' => 'boolean',
         'is_active' => 'boolean',

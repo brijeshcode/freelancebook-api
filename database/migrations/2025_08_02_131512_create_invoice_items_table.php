@@ -14,7 +14,9 @@ return new class extends Migration
             $table->foreignId('service_id')->nullable()->constrained()->onDelete('set null');
             
             // Item Details (stored separately to preserve invoice integrity even if service changes)
-            $table->string('description');
+            // title: null = auto-filled from service title at invoice creation time
+            $table->string('title')->nullable();
+            $table->text('description')->nullable();
             $table->integer('quantity')->default(1);
             $table->decimal('unit_price', 15, 2);
             $table->decimal('total_price', 15, 2);

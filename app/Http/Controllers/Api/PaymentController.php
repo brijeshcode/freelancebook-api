@@ -8,6 +8,7 @@ use App\Http\Requests\PaymentUpdateRequest;
 use App\Http\Resources\PaymentResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Payment;
+use App\Services\CurrencyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -16,7 +17,8 @@ use Illuminate\Support\Str;
 class PaymentController extends Controller
 {
     private int $userId;
-    public function __construct()
+
+    public function __construct(private CurrencyService $currencyService)
     {
         $this->userId = Auth::id();
     }
@@ -24,9 +26,9 @@ class PaymentController extends Controller
     public function index(Request $request)
     {
         $payments = Payment::whereHas('client', function ($q) {
-            $q->where('user_id', $this->userId);
-        })
-            ->with(['client'])
+                $q->where('user_id', $this->userId);
+            })
+            ->with(['client', 'currency'])
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->client_id, fn($q) => $q->where('client_id', $request->client_id))
             ->when($request->payment_method, fn($q) => $q->byPaymentMethod($request->payment_method))
@@ -38,14 +40,28 @@ class PaymentController extends Controller
 
     public function store(PaymentStoreRequest $request)
     {
-        $paymentData = $request->validated();
-        $paymentData['freelancer_id'] = $this->userId;
-        $paymentData['transaction_number'] = 'PAY-' . date('Y') . '-' . strtoupper(Str::random(6));
-        $paymentData['amount_base_currency'] = $request->amount * $request->exchange_rate;
-        $paymentData['status'] = $request->status ?? 'completed';
+        $data = $request->validated();
+        $data['freelancer_id']     = $this->userId;
+        $data['transaction_number'] = 'PAY-' . date('Y') . '-' . strtoupper(Str::random(6));
+        $data['status']            = $request->status ?? 'completed';
 
-        $payment = Payment::create($paymentData);
-        $payment->load('client');
+        // Resolve exchange rate snapshot — use request values if provided, otherwise pull from active rate
+        $snapshot = $this->currencyService->snapshot(
+            $data['currency_id'],
+            $this->currencyService->getBaseCurrency($this->userId)
+        );
+
+        $data['exchange_rate']    = $request->exchange_rate    ?? $snapshot['exchange_rate'];
+        $data['calculation_type'] = $request->calculation_type ?? $snapshot['calculation_type'];
+
+        $data['amount_base_currency'] = $this->currencyService->applyRate(
+            (float) $data['amount'],
+            (float) $data['exchange_rate'],
+            $data['calculation_type']
+        );
+
+        $payment = Payment::create($data);
+        $payment->load(['client', 'currency']);
 
         return ApiResponse::store('Payment recorded successfully', new PaymentResource($payment));
     }
@@ -56,7 +72,7 @@ class PaymentController extends Controller
             return ApiResponse::forbidden('Access denied to this payment');
         }
 
-        $payment->load(['client', 'verifiedBy']);
+        $payment->load(['client', 'currency', 'verifiedBy']);
         return ApiResponse::show('Payment retrieved successfully', new PaymentResource($payment));
     }
 
@@ -66,17 +82,23 @@ class PaymentController extends Controller
             return ApiResponse::forbidden('Access denied to this payment');
         }
 
-        $updateData = $request->validated();
+        $data = $request->validated();
 
-        // Recalculate base currency amount if amount or exchange rate changed
-        if ($request->has('amount') || $request->has('exchange_rate')) {
-            $amount = $request->amount ?? $payment->amount;
-            $exchangeRate = $request->exchange_rate ?? $payment->exchange_rate;
-            $updateData['amount_base_currency'] = $amount * $exchangeRate;
+        // Recalculate base currency amount if amount, exchange_rate, or calculation_type changed
+        if ($request->hasAny(['amount', 'exchange_rate', 'calculation_type'])) {
+            $amount          = (float) ($data['amount']          ?? $payment->amount);
+            $exchangeRate    = (float) ($data['exchange_rate']   ?? $payment->exchange_rate);
+            $calculationType =          $data['calculation_type'] ?? $payment->calculation_type;
+
+            $data['amount_base_currency'] = $this->currencyService->applyRate(
+                $amount,
+                $exchangeRate,
+                $calculationType
+            );
         }
 
-        $payment->update($updateData);
-        $payment->load('client');
+        $payment->update($data);
+        $payment->load(['client', 'currency']);
 
         return ApiResponse::update('Payment updated successfully', new PaymentResource($payment));
     }
@@ -98,9 +120,9 @@ class PaymentController extends Controller
         }
 
         $payment->update([
-            'status' => 'completed',
+            'status'      => 'completed',
             'verified_at' => now(),
-            'verified_by' => $this->userId
+            'verified_by' => $this->userId,
         ]);
 
         return ApiResponse::update('Payment verified successfully', new PaymentResource($payment));
@@ -108,16 +130,15 @@ class PaymentController extends Controller
 
     public function stats()
     {
-        $freelancerId = $this->userId;
-
-        $payments = Payment::whereHas('client', function ($q) use ($freelancerId) {
-            $q->where('user_id', $freelancerId);
+        $payments = Payment::whereHas('client', function ($q) {
+            $q->where('user_id', $this->userId);
         });
 
         $totalPayments = $payments->count();
-        $totalReceived = $payments->where('status', 'completed')->sum('amount_base_currency');
-        $pendingAmount = $payments->where('status', 'pending')->sum('amount_base_currency');
-        $thisMonth = $payments->where('status', 'completed')
+        $totalReceived = $payments->clone()->where('status', 'completed')->sum('amount_base_currency');
+        $pendingAmount = $payments->clone()->where('status', 'pending')->sum('amount_base_currency');
+        $thisMonth     = $payments->clone()
+            ->where('status', 'completed')
             ->whereMonth('payment_date', now()->month)
             ->whereYear('payment_date', now()->year)
             ->sum('amount_base_currency');
@@ -126,28 +147,25 @@ class PaymentController extends Controller
             'total_payments' => $totalPayments,
             'total_received' => round($totalReceived, 2),
             'pending_amount' => round($pendingAmount, 2),
-            'this_month' => round($thisMonth, 2)
+            'this_month'     => round($thisMonth, 2),
         ]);
     }
 
     public function uploadReceipts(Request $request)
     {
         $request->validate([
-            'files.*' => 'required|file|mimes:jpeg,jpg,png,gif,pdf|max:10240'
+            'files.*' => 'required|file|mimes:jpeg,jpg,png,gif,pdf|max:10240',
         ]);
 
         $filePaths = [];
 
         if ($request->hasFile('files')) {
             foreach ($request->file('files') as $file) {
-                $path = $file->store('payments/receipts', 'public');
-                $filePaths[] = $path;
+                $filePaths[] = $file->store('payments/receipts', 'public');
             }
         }
 
-        return ApiResponse::show('Files uploaded successfully', [
-            'file_paths' => $filePaths
-        ]);
+        return ApiResponse::show('Files uploaded successfully', ['file_paths' => $filePaths]);
     }
 
     public function viewFile(Request $request)

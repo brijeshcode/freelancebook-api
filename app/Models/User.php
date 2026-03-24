@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -96,5 +98,41 @@ class User extends Authenticatable
             self::ROLE_FREELANCER,
             self::ROLE_CLIENT,
         ];
+    }
+
+    // Relationships
+    public function settings(): HasOne
+    {
+        return $this->hasOne(FreelancerSetting::class, 'freelancer_id');
+    }
+
+    public function clients(): HasMany
+    {
+        return $this->hasMany(Client::class);
+    }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class, 'freelancer_id');
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class, 'freelancer_id');
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'freelancer_id');
+    }
+
+    public function services(): HasMany
+    {
+        return $this->hasMany(Service::class, 'created_by');
+    }
+
+    public function currencyRatesCreated(): HasMany
+    {
+        return $this->hasMany(CurrencyRate::class, 'created_by');
     }
 }
