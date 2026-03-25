@@ -29,14 +29,7 @@ class InvoiceController extends Controller
 
     public function index(Request $request)
     {
-        $invoices = Invoice::whereHas('client', function ($q) {
-                $q->where('user_id', $this->userId);
-            })
-            ->with(['client', 'project', 'currency', 'items'])
-            ->when($request->status, fn($q) => $q->byStatus($request->status))
-            ->when($request->client_id, fn($q) => $q->where('client_id', $request->client_id))
-            ->when($request->billing_month, fn($q) => $q->byBillingMonth($request->billing_month))
-            ->latest()
+        $invoices = $this->invoiceQuery($request)
             ->paginate($request->per_page ?? 15);
 
         return ApiResponse::paginated('Invoices retrieved successfully', $invoices, InvoiceResource::class);
@@ -208,11 +201,29 @@ class InvoiceController extends Controller
         return ApiResponse::update('Invoice marked as sent', new InvoiceResource($invoice));
     }
 
-    public function stats()
+    public function changeStatus(Request $request, Invoice $invoice)
     {
-        $invoices = Invoice::whereHas('client', function ($q) {
-            $q->where('user_id', $this->userId);
-        });
+        if ($invoice->freelancer_id !== $this->userId) {
+            return ApiResponse::forbidden('Access denied to this invoice');
+        }
+
+        $request->validate([
+            'status' => 'required|in:draft,sent,paid,overdue,cancelled',
+        ]);
+
+        $data = ['status' => $request->status];
+
+        if ($request->status === 'sent' && !$invoice->sent_at) {
+            $data['sent_at'] = now();
+        }
+
+        $invoice->update($data);
+        return ApiResponse::update('Invoice status updated successfully', new InvoiceResource($invoice));
+    }
+
+    public function stats(Request $request)
+    {
+        $invoices = $this->invoiceQuery($request);
 
         $totalInvoices    = $invoices->clone()->count();
         $totalBilled      = $invoices->clone()->sum('total_amount_base_currency');
@@ -223,7 +234,10 @@ class InvoiceController extends Controller
 
         $totalPayments = Payment::whereHas('client', function ($q) {
             $q->where('user_id', $this->userId);
-        })->where('status', 'completed')->sum('amount_base_currency');
+        })
+        ->when($request->client_id, fn($q) => $q->where('client_id', $request->client_id))
+        ->where('status', 'completed')
+        ->sum('amount_base_currency');
 
         return ApiResponse::index('Invoice statistics retrieved successfully', [
             'total_invoices'      => $totalInvoices,
@@ -231,5 +245,17 @@ class InvoiceController extends Controller
             'outstanding_balance' => round($totalBilled - $totalPayments, 2),
             'overdue_invoices'    => $overdueInvoices,
         ]);
+    }
+
+    public function invoiceQuery(Request $request) 
+    {
+         return Invoice::query()->whereHas('client', function ($q) {
+                $q->where('user_id', $this->userId);
+            })
+            ->with(['client', 'project', 'currency', 'items'])
+            ->when($request->status, fn($q) => $q->byStatus($request->status))
+            ->when($request->client_id, fn($q) => $q->where('client_id', $request->client_id))
+            ->when($request->billing_month, fn($q) => $q->byBillingMonth($request->billing_month))
+            ->latest();
     }
 }

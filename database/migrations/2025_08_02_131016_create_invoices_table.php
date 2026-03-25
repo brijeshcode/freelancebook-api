@@ -20,7 +20,7 @@ return new class extends Migration
             $table->date('billing_month')->nullable(); // first day of billing month, e.g. 2026-03-01
             $table->date('due_date')->nullable();
             $table->text('notes')->nullable();
-            $table->enum('status', ['draft', 'sent', 'paid', 'overdue', 'cancelled'])->default('paid');
+            $table->enum('status', ['draft', 'sent', 'paid', 'overdue', 'cancelled'])->default('draft');
             
             // Currency & Financial
             $table->string('currency', 3); // ISO currency code (USD, EUR, etc.)

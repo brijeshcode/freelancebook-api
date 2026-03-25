@@ -117,6 +117,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('invoices/stats', [InvoiceController::class, 'stats'])->name('invoices.stats');
     Route::apiResource('invoices', InvoiceController::class);
     Route::patch('invoices/{invoice}/mark-as-sent', [InvoiceController::class, 'markAsSent']);
+    Route::patch('invoices/{invoice}/status', [InvoiceController::class, 'changeStatus']);
     
     // Payment Management
     // Add to api.php

@@ -25,14 +25,7 @@ class PaymentController extends Controller
 
     public function index(Request $request)
     {
-        $payments = Payment::whereHas('client', function ($q) {
-                $q->where('user_id', $this->userId);
-            })
-            ->with(['client', 'currency'])
-            ->when($request->status, fn($q) => $q->where('status', $request->status))
-            ->when($request->client_id, fn($q) => $q->where('client_id', $request->client_id))
-            ->when($request->payment_method, fn($q) => $q->byPaymentMethod($request->payment_method))
-            ->latest('payment_date')
+        $payments = $this->paymentQuery($request)
             ->paginate($request->per_page ?? 15);
 
         return ApiResponse::paginated('Payments retrieved successfully', $payments, PaymentResource::class);
@@ -128,13 +121,11 @@ class PaymentController extends Controller
         return ApiResponse::update('Payment verified successfully', new PaymentResource($payment));
     }
 
-    public function stats()
+    public function stats(Request $request)
     {
-        $payments = Payment::whereHas('client', function ($q) {
-            $q->where('user_id', $this->userId);
-        });
+        $payments = $this->paymentQuery($request);
 
-        $totalPayments = $payments->count();
+        $totalPayments = $payments->clone()->count();
         $totalReceived = $payments->clone()->where('status', 'completed')->sum('amount_base_currency');
         $pendingAmount = $payments->clone()->where('status', 'pending')->sum('amount_base_currency');
         $thisMonth     = $payments->clone()
@@ -149,6 +140,18 @@ class PaymentController extends Controller
             'pending_amount' => round($pendingAmount, 2),
             'this_month'     => round($thisMonth, 2),
         ]);
+    }
+
+    public function paymentQuery(Request $request)
+    {
+        return Payment::query()->whereHas('client', function ($q) {
+                $q->where('user_id', $this->userId);
+            })
+            ->with(['client', 'currency'])
+            ->when($request->status, fn($q) => $q->where('status', $request->status))
+            ->when($request->client_id, fn($q) => $q->where('client_id', $request->client_id))
+            ->when($request->payment_method, fn($q) => $q->byPaymentMethod($request->payment_method))
+            ->latest('payment_date');
     }
 
     public function uploadReceipts(Request $request)
