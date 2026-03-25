@@ -31,7 +31,7 @@ A comprehensive freelancer management system backend built with Laravel 12. This
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/freelancebook-api.git
+   git clone https://github.com/brijeshcode/freelancebook-api.git
    cd freelancebook-api
    ```
 
